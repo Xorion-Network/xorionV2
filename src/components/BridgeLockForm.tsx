@@ -13,17 +13,25 @@ import {
   useWriteContract,
   useWaitForTransactionReceipt,
   useConnect,
+  useBalance 
 } from "wagmi";
 import { parseUnits } from "viem";
 import BRIDGE_ABI from "@/lib/bridge-abi.json";
+import {ensureEthereumNetwork} from "@/lib/utils";
 import { decodeAddress } from "@polkadot/util-crypto";
 import { http, createConfig } from "wagmi";
 import { mainnet } from "wagmi/chains";
+import { switchChain } from "wagmi/actions";
 
 const TOKEN_DECIMALS = 18;
-const BRIDGE_CONTRACT_ADDRESS = "0x7cce42AbC9A7e3f835fCB9b04B2e352529dE172b";
+const BRIDGE_CONTRACT_ADDRESS = "0xa21f5388f3b812D0C2ab97A6C04f40576B961eb3";
+const XWOR_CONTRACT_ADDRESS = '0xa21f5388f3b812D0C2ab97A6C04f40576B961eb3'
 const ETH_CHAIN = mainnet;
-const ETH_RPC = import.meta.env.VITE_ETH_RPC as string;
+// eslint-disable-next-line no-constant-binary-expression
+const ETH_RPC = import.meta.env.VITE_ETH_RPC || 
+                "https://eth.merkle.io" || 
+                "https://eth.llamarpc.com" || 
+                "https://rpc.ankr.com/eth";
 
 export const wagmiConfig = createConfig({
   chains: [ETH_CHAIN],
@@ -31,6 +39,8 @@ export const wagmiConfig = createConfig({
     [ETH_CHAIN.id]: http(ETH_RPC),
   },
 });
+
+
 
 const BridgeLockForm = ({
   onSearchTransaction,
@@ -71,6 +81,29 @@ const BridgeLockForm = ({
       throw new Error("Invalid amount format");
     }
   };
+
+  useEffect(() => {
+  const debugMetaMaskState = async () => {
+    if (typeof window.ethereum !== 'undefined') {
+      // Check current chain
+      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      console.log('MetaMask current chainId:', chainId);
+      
+      // Check all configured chains in MetaMask
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      console.log('Connected accounts:', accounts);
+      
+      // Check if Taker is configured in MetaMask
+      console.log('MetaMask _state:', window.ethereum._state);
+    }
+  };
+  
+  debugMetaMaskState();
+}, []);
+
+  // Check what these values are
+// console.log('ETH_CHAIN:', ETH_CHAIN);
+// console.log('ETH_RPC:', ETH_RPC);
 
   const toMessageId = (hex: string): Uint8Array => {
     const cleanHex = hex.startsWith("0x") ? hex.slice(2) : hex;
@@ -189,6 +222,10 @@ const BridgeLockForm = ({
     setSuccess("");
 
     try {
+      await switchChain(wagmiConfig, { chainId: 1 });
+
+      await ensureEthereumNetwork();
+
       // Validate SS58 address
       if (!xorionRecipient.match(/^[1-9A-HJ-NP-Za-km-z]{46,48}$/)) {
         throw new Error("Invalid Xorion (Polkadot) recipient address.");
@@ -204,7 +241,7 @@ const BridgeLockForm = ({
       writeContract({
         address: BRIDGE_CONTRACT_ADDRESS,
         abi: BRIDGE_ABI,
-        functionName: "release",
+        functionName: "lock",
         args: [amountUnits, recipientBytes],
         chain: ETH_CHAIN,
         account: ethAddress, // Fix: Add the connected Ethereum address
@@ -215,6 +252,15 @@ const BridgeLockForm = ({
       setIsLoading(false);
     }
   };
+
+  const { data: tokenBalance, isLoading: tokenBalanceLoading } = useBalance({
+  address: ethAddress,
+  token: XWOR_CONTRACT_ADDRESS, 
+});
+
+  const { data: ethBalance } = useBalance({
+    address: ethAddress,
+  });
 
   const handleConnectEthereum = () => {
      console.log('Available connectors:', connectors);
@@ -361,10 +407,10 @@ const BridgeLockForm = ({
           {activeTab === "bridge" && (
             <div className="space-y-4">
                {selectedAccount && (
-      <div className="flex justify-between items-center text-sm text-gray-600 p-2 bg-gray-100
-       rounded-lg cursor-pointer">
+      <div className="flex justify-between items-center text-sm p-2 
+       rounded-lg cursor-pointer text-gray-50">
         <span className="font-medium">Available Balance:</span>
-        <span className="font-semibold text-blue-600">
+        <span className="">
           {formattedBalance} tokens
         </span>
       </div>
@@ -421,14 +467,50 @@ const BridgeLockForm = ({
                   Connect Ethereum Wallet
                 </Button>
               )}
-              {isEthConnected && (
-                <div>
-                  <h3 className="font-semibold">Selected Ethereum Account:</h3>
-                  <p>
-                    {ethAddress.slice(0, 6)}...{ethAddress.slice(-4)}
-                  </p>
-                </div>
-              )}
+             { isEthConnected && (
+      <div className="space-y-2 p-3  text-gray-50 rounded-lg">        
+        {/* Ethereum Address */}
+        <div className="flex justify-between text-sm">
+          <span className="">Address:</span>
+          <span className="font-mono ">
+            {ethAddress?.slice(0, 6)}...{ethAddress?.slice(-4)} tt
+          </span>
+        </div>
+
+        {/* ETH Balance (for gas) */}
+        <div className="flex justify-between text-sm">
+          <span className="">ETH Balance:</span>
+          <span className="font-medium ">
+            {ethBalance ? Number(ethBalance.formatted).toFixed(4) : '0'} ETH
+          </span>
+        </div>
+
+        {/* Wrapped Token Balance */}
+        <div className="flex justify-between text-sm">
+          <span className="">Wrapped Token Balance:</span>
+          <span className="font-medium ">
+            {tokenBalanceLoading ? (
+              // <Loader2 className="h-3 w-3 animate-spin inline" />
+              '---'
+            ) : tokenBalance ? (
+              `${Number(tokenBalance.formatted).toFixed(4)} tokens`
+            ) : (
+              '0.0000 tokens'
+            )}
+          </span>
+        </div>
+
+        {/* Warning if no ETH for gas */}
+        {ethBalance && Number(ethBalance.value) === 0 && (
+          <Alert variant="destructive" className="py-2">
+            <AlertDescription className="text-xs">
+              You need ETH for transaction fees
+            </AlertDescription>
+          </Alert>
+        )}
+      </div>
+    )}
+
               <Input
                 type="number"
                 placeholder="Amount to release (e.g., 1.5)"
