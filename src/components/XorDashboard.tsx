@@ -4,17 +4,46 @@ import { usePolkadotStore } from "@/stores/polkadotStore";
 import { useLaunchClaim } from "@/hooks/useLaunchClaim";
 import { formatTxor } from "@/lib/utils";
 
-const Card: React.FC<React.PropsWithChildren<{ title: string }>> = ({ title, children }) => (
+const Card: React.FC<React.PropsWithChildren<{ title: string; action?: React.ReactNode }>> = ({ title, children, action }) => (
     <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-        <div className="text-sm text-gray-400 mb-1">{title}</div>
+        <div className="flex items-center justify-between mb-1">
+            <div className="text-sm text-gray-400">{title}</div>
+            {action}
+        </div>
         <div className="text-white text-lg">{children}</div>
     </div>
 );
 
 export default function XorDashboard() {
     const { selectedAccount, balance } = useWallet();
-    const { apiState } = usePolkadotStore();
+    const { apiState, api } = usePolkadotStore();
     const { data, isLoading, error } = useLaunchClaim();
+    const [currentBlock, setCurrentBlock] = React.useState<number>(0);
+
+    // Fetch current block number
+    React.useEffect(() => {
+        if (!api || apiState.status !== 'connected') return;
+
+        const fetchBlockNumber = async () => {
+            try {
+                const header = await api.rpc.chain.getHeader();
+                setCurrentBlock(header.number.toNumber());
+            } catch (error) {
+                console.error('Failed to fetch block number:', error);
+            }
+        };
+
+        fetchBlockNumber();
+
+        // Subscribe to new blocks
+        const unsubscribe = api.rpc.chain.subscribeNewHeads((header) => {
+            setCurrentBlock(header.number.toNumber());
+        });
+
+        return () => {
+            unsubscribe.then(unsub => unsub());
+        };
+    }, [api, apiState.status]);
 
     const formattedBalance = useMemo(() => {
         if (!balance) return "0";
@@ -52,12 +81,24 @@ export default function XorDashboard() {
         }
     }, [data?.claimed, claimableCapRaw]);
 
-    const startTimestamp = useMemo(() => {
+    const startBlockInfo = useMemo(() => {
         if (!data?.start || data.start === "0") return "—";
-        const ms = Number(data.start);
-        if (!isFinite(ms) || ms <= 0) return data.start;
-        return new Date(ms).toLocaleString();
-    }, [data?.start]);
+        const startBlock = Number(data.start);
+        if (!isFinite(startBlock) || startBlock <= 0) return data.start;
+
+        // Convert block number to approximate date
+        // Assuming 6 seconds per block (Polkadot standard)
+        const BLOCK_TIME_SECONDS = 6;
+        const blocksElapsed = currentBlock - startBlock;
+        const secondsElapsed = blocksElapsed * BLOCK_TIME_SECONDS;
+
+        if (secondsElapsed < 0) {
+            return `Block ${startBlock} (Future)`;
+        }
+
+        const date = new Date(Date.now() - (secondsElapsed * 1000));
+        return `Block ${startBlock} (${date.toLocaleDateString()})`;
+    }, [data?.start, currentBlock]);
 
     return (
         <div className="w-full space-y-6">
@@ -66,7 +107,7 @@ export default function XorDashboard() {
                 <div className="flex items-center gap-2 text-sm text-gray-400">
                     <a
                         className="px-2 py-1 rounded-full border border-gray-600 text-gray-200 hover:bg-gray-700"
-                        href="https://etherscan.io/token/0xa21f5388f3b812d0c2ab97a6c04f40576b961eb3?a=0x0a2e8dc7cf86f447d7553e850810682ae3307d81"
+                        href="https://etherscan.io/token/0xa21f5388f3b812d0c2ab97a6c04f40576b961eb3"
                         target="_blank"
                         rel="noopener noreferrer"
                     >
@@ -91,7 +132,21 @@ export default function XorDashboard() {
                 <Card title="TGE Total Assigned (XOR)">{isLoading ? 'Loading...' : totalXor}</Card>
                 <Card title="Claimable at TGE (50%)">{isLoading ? 'Loading...' : claimableCapXor}</Card>
                 <Card title="Claimed (XOR)">{isLoading ? 'Loading...' : claimedXor}</Card>
-                <Card title="Available to Claim Now (XOR)">{isLoading ? 'Loading...' : availableClaimableXor}</Card>
+                <Card
+                    title="Available to Claim Now (XOR)"
+                    action={
+                        <a
+                            href="http://ido.xorion.network/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors whitespace-nowrap min-w-fit"
+                        >
+                            Buy IDO
+                        </a>
+                    }
+                >
+                    {isLoading ? 'Loading...' : availableClaimableXor}
+                </Card>
             </div>
 
             <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
@@ -105,7 +160,7 @@ export default function XorDashboard() {
                 <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
                     <div className="text-gray-400">TGE Assigned: <span className="text-white">{totalXor} XOR</span></div>
                     <div className="text-gray-400">TGE Claimable (50%): <span className="text-white">{claimableCapXor} XOR</span></div>
-                    <div className="text-gray-400">Start: <span className="text-white">{startTimestamp}</span></div>
+                    <div className="text-gray-400">Start: <span className="text-white">{startBlockInfo}</span></div>
                 </div>
                 {error && <div className="mt-2 text-red-400 text-sm">{error}</div>}
             </div>
