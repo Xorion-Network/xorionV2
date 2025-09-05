@@ -179,7 +179,8 @@ interface PolkadotStore {
 }
 
 // WEBSOCKET ENDPOINTS
-const ENDPOINTS = import.meta.env.VITE_POLKADOT_ENDPOINTS.split(",");
+const ENDPOINTS = ['wss://node01.xorion.network']
+// import.meta.env.VITE_POLKADOT_ENDPOINTS.split(",");
 
 const DEFAULT_METRICS: NetworkMetrics = {
   validatorsOnline: 0,
@@ -193,7 +194,6 @@ const DEFAULT_METRICS: NetworkMetrics = {
   lastUpdated: 0,
 };
 
-console.log(ENDPOINTS);
 
 // TIMEOUT CONSTANTS
 const CONNECTION_TIMEOUT = 30000;
@@ -780,7 +780,6 @@ async function fetchNetworkDataWithTimeout(api: ApiPromise) {
       totalValueLocked = totalValueLocked.add(new BN(activeStake.toString()));
     }
   }
-  1;
 
   const metrics = {
     validatorsOnline,
@@ -804,7 +803,7 @@ async function fetchNetworkDataWithTimeout(api: ApiPromise) {
 // FIXED: Enhanced transaction data fetching with proper transfer detection
 async function fetchEnhancedTransactionData(api: ApiPromise) {
   // const finalizedHead = await api.rpc.chain.getFinalizedHead();
-  let finalizedHead;
+  let finalizedHead: any;
   try {
     finalizedHead = await api.rpc.chain.getFinalizedHead();
     console.log("📊 Finalized head:", finalizedHead.toHex());
@@ -975,7 +974,7 @@ function detectTransferFromExtrinsic(
   const method = extrinsic.method.method;
   const args = extrinsic.method.args;
 
-  let transferInfo = {
+  const transferInfo = {
     isTransfer: false,
     from: undefined as string | undefined,
     to: undefined as string | undefined,

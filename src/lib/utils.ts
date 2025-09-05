@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import type BN from 'bn.js';
+import { bsc } from 'wagmi/chains';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -32,36 +33,77 @@ export function formatTxor(balanceRaw: string | number | BN, decimals = 18, maxF
   return display.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: maxFractionDigits });
 }
 
+// Ethereum
+// export const ensureEthereumNetwork = async () => {
+//   if (typeof window.ethereum === "undefined") {
+//     throw new Error("MetaMask not detected");
+//   }
 
-export const ensureEthereumNetwork = async () => {
-  if (typeof window.ethereum === "undefined") {
-    throw new Error("MetaMask not detected");
-  }
+//   const chainId = await window.ethereum.request({ method: "eth_chainId" });
 
-  const chainId = await window.ethereum.request({ method: "eth_chainId" });
+//   if (chainId !== "0x1") {
+//     try {
+//       await window.ethereum.request({
+//         method: "wallet_switchEthereumChain",
+//         params: [{ chainId: "0x1" }], 
+//       });
+//     } catch (switchError: any) {
+//       if (switchError.code === 4902) {
+//         await window.ethereum.request({
+//           method: "wallet_addEthereumChain",
+//           params: [
+//             {
+//               chainId: "0x1",
+//               chainName: "Ethereum Mainnet",
+//               nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+//               rpcUrls: ["https://rpc.ankr.com/eth"],
+//               blockExplorerUrls: ["https://etherscan.io"],
+//             },
+//           ],
+//         });
+//       } else {
+//         throw switchError;
+//       }
+//     }
+//   }
+// };
 
-  if (chainId !== "0x1") {
+// bsc 
+
+const addBSCToWallet = async () => {
+  await window.ethereum.request({
+    method: 'wallet_addEthereumChain',
+    params: [{
+      chainId: '0x38',
+      chainName: 'Binance Smart Chain Mainnet',
+      nativeCurrency: {
+        name: 'BNB',
+        symbol: 'BNB',
+        decimals: 18,
+      },
+      rpcUrls: ['https://bsc-dataseed.binance.org/'],
+      blockExplorerUrls: ['https://bscscan.com/'],
+    }],
+  });
+};
+
+
+export const ensureBSCNetwork = async () => {
+  const BSC_CHAIN = bsc;
+  if (typeof window.ethereum === 'undefined') return;
+  
+  const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+  const expectedChainId = `0x${BSC_CHAIN.id.toString(16)}`; // 0x38 for BSC mainnet
+  
+  if (chainId !== expectedChainId) {
     try {
       await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x1" }], 
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: expectedChainId }],
       });
-    } catch (switchError: any) {
-      if (switchError.code === 4902) {
-        await window.ethereum.request({
-          method: "wallet_addEthereumChain",
-          params: [
-            {
-              chainId: "0x1",
-              chainName: "Ethereum Mainnet",
-              nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-              rpcUrls: ["https://rpc.ankr.com/eth"],
-              blockExplorerUrls: ["https://etherscan.io"],
-            },
-          ],
-        });
-      } else {
-        throw switchError;
+    } catch (error) {
+      if (error.code === 4902) {
+        await addBSCToWallet();
       }
     }
   }

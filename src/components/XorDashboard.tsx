@@ -1,8 +1,11 @@
 import React, { useMemo } from "react";
 import { useWallet } from "@/components/WalletConnection";
+import  AirdropPanel from "@/components/ClaimAirdrop";
 import { usePolkadotStore } from "@/stores/polkadotStore";
 import { useLaunchClaim } from "@/hooks/useLaunchClaim";
 import { formatTxor } from "@/lib/utils";
+import WalletConnection from './WalletConnection';
+
 
 const Card: React.FC<React.PropsWithChildren<{ title: string; action?: React.ReactNode }>> = ({ title, children, action }) => (
     <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
@@ -164,6 +167,8 @@ export default function XorDashboard() {
                 </div>
                 {error && <div className="mt-2 text-red-400 text-sm">{error}</div>}
             </div>
+
+            <AirdropPanel />
 
             {!selectedAccount && (
                 <div className="text-sm text-yellow-400">

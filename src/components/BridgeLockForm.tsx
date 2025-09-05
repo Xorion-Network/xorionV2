@@ -17,29 +17,45 @@ import {
 } from "wagmi";
 import { parseUnits } from "viem";
 import BRIDGE_ABI from "@/lib/bridge-abi.json";
-import {ensureEthereumNetwork} from "@/lib/utils";
+import BRIDGE_ABI_BSC from "@/lib/bridge-abibsc.json";
+import {ensureEthereumNetwork, ensureBSCNetwork} from "@/lib/utils";
 import { decodeAddress } from "@polkadot/util-crypto";
 import { http, createConfig } from "wagmi";
-import { mainnet } from "wagmi/chains";
-import { switchChain } from "wagmi/actions";
+import { mainnet, bsc } from "wagmi/chains";
+import { switchChain, estimateGas } from "wagmi/actions";
 
 const TOKEN_DECIMALS = 18;
-const BRIDGE_CONTRACT_ADDRESS = "0xa21f5388f3b812D0C2ab97A6C04f40576B961eb3";
-const XWOR_CONTRACT_ADDRESS = '0xa21f5388f3b812D0C2ab97A6C04f40576B961eb3'
-const ETH_CHAIN = mainnet;
-// eslint-disable-next-line no-constant-binary-expression
-const ETH_RPC = import.meta.env.VITE_ETH_RPC || 
-                "https://eth.merkle.io" || 
-                "https://eth.llamarpc.com" || 
-                "https://rpc.ankr.com/eth";
 
+//Ethereum config
+// const BRIDGE_CONTRACT_ADDRESS = "0xa21f5388f3b812D0C2ab97A6C04f40576B961eb3";
+// const XWOR_CONTRACT_ADDRESS = '0xa21f5388f3b812D0C2ab97A6C04f40576B961eb3'
+// const ETH_CHAIN = mainnet;
+// // eslint-disable-next-line no-constant-binary-expression
+// const ETH_RPC = import.meta.env.VITE_ETH_RPC || 
+//                 "https://eth.merkle.io" || 
+//                 "https://eth.llamarpc.com" || 
+//                 "https://rpc.ankr.com/eth";
+
+
+// Ethereum config 
+// export const wagmiConfig = createConfig({
+//   chains: [ETH_CHAIN],
+//   transports: {
+//     [ETH_CHAIN.id]: http(ETH_RPC),
+//   },
+// });
+
+const BSC_CHAIN = bsc;
+const BSC_RPC = import.meta.env.VITE_BSC_RPC || "https://bsc-dataseed.binance.org"
+const BRIDGE_CONTRACT_ADDRESS = "0x0a400F719b4BA637D5632649cb73684171348054"
+const BSC_TOKEN_CONTRACT = "0x0a400F719b4BA637D5632649cb73684171348054"
+//bsc config
 export const wagmiConfig = createConfig({
-  chains: [ETH_CHAIN],
+  chains: [BSC_CHAIN],
   transports: {
-    [ETH_CHAIN.id]: http(ETH_RPC),
+    [BSC_CHAIN.id]: http(BSC_RPC),
   },
 });
-
 
 
 const BridgeLockForm = ({
@@ -222,9 +238,10 @@ const BridgeLockForm = ({
     setSuccess("");
 
     try {
-      await switchChain(wagmiConfig, { chainId: 1 });
+      await switchChain(wagmiConfig, { chainId: BSC_CHAIN.id });
 
-      await ensureEthereumNetwork();
+      // await ensureEthereumNetwork();
+      await ensureBSCNetwork();
 
       // Validate SS58 address
       if (!xorionRecipient.match(/^[1-9A-HJ-NP-Za-km-z]{46,48}$/)) {
@@ -240,11 +257,11 @@ const BridgeLockForm = ({
 
       writeContract({
         address: BRIDGE_CONTRACT_ADDRESS,
-        abi: BRIDGE_ABI,
+        abi: BRIDGE_ABI_BSC,
         functionName: "lock",
         args: [amountUnits, recipientBytes],
-        chain: ETH_CHAIN,
-        account: ethAddress, // Fix: Add the connected Ethereum address
+        chain: BSC_CHAIN, // ETH_CHAIN,
+        account: ethAddress,
       });
     } catch (err) {
       setError(`Release failed: ${err.message}`);
@@ -255,12 +272,15 @@ const BridgeLockForm = ({
 
   const { data: tokenBalance, isLoading: tokenBalanceLoading } = useBalance({
   address: ethAddress,
-  token: XWOR_CONTRACT_ADDRESS, 
+  token: BSC_TOKEN_CONTRACT //XWOR_CONTRACT_ADDRESS, 
 });
 
   const { data: ethBalance } = useBalance({
     address: ethAddress,
   });
+
+  console.log('tokenBal: ', tokenBalance)
+  console.log('ethBal: ', ethBalance)
 
   const handleConnectEthereum = () => {
      console.log('Available connectors:', connectors);
@@ -272,7 +292,8 @@ const BridgeLockForm = ({
       connect({connector: trustWallet})
     }
     else {
-      setError("MetaMask not detected. Please install it.");
+      // setError("MetaMask not detected. Please install it.");
+      setError("Wallet not detected. Please install it.");
     }
   };
 
@@ -285,10 +306,12 @@ const BridgeLockForm = ({
 
   useEffect(() => {
     if (ethError) {
-      setError(`Ethereum transaction failed: ${ethError.message}`);
+      // setError(`Ethereum transaction failed: ${ethError.message}`);
+      setError(`Transaction failed: ${ethError.message}`);
     }
     if (isEthSuccess) {
-      setSuccess(`Tokens released (burned) on Ethereum! Tx: ${txHash}`);
+      // setSuccess(`Tokens released (burned) on Ethereum! Tx: ${txHash}`);
+      setSuccess(`Tokens released (burned)! Tx: ${txHash}`);
       toast({
         title: "Success",
         description: "Tokens successfully released!",
@@ -328,7 +351,7 @@ const BridgeLockForm = ({
   return (
     <Card className="max-w-lg mx-auto">
       <CardHeader>
-        <CardTitle>Bridge Tokens to Ethereum</CardTitle>
+        <CardTitle>Bridge Tokens to Bsc</CardTitle>
       </CardHeader>
       <CardContent>
         {error && (
@@ -367,7 +390,7 @@ const BridgeLockForm = ({
         {activeTab === "release" && !isEthConnected && (
           <Alert variant="destructive" className="mb-4">
             <AlertDescription className="break-words whitespace-normal">
-              Please connect an Ethereum wallet (e.g., MetaMask on Ethereum Mainnet) to
+              Please connect a wallet (e.g., wallet on Bsc Mainnet) to
               proceed.
             </AlertDescription>
           </Alert>
@@ -464,7 +487,7 @@ const BridgeLockForm = ({
             <div className="space-y-4">
               {!isEthConnected && (
                 <Button onClick={handleConnectEthereum} className="w-full">
-                  Connect Ethereum Wallet
+                  Connect Wallet
                 </Button>
               )}
              { isEthConnected && (
@@ -479,9 +502,9 @@ const BridgeLockForm = ({
 
         {/* ETH Balance (for gas) */}
         <div className="flex justify-between text-sm">
-          <span className="">ETH Balance:</span>
+          <span className="">BNB Balance:</span>
           <span className="font-medium ">
-            {ethBalance ? Number(ethBalance.formatted).toFixed(4) : '0'} ETH
+            {ethBalance ? Number(ethBalance.formatted).toFixed(4) : '0'} BNB
           </span>
         </div>
 
@@ -504,7 +527,7 @@ const BridgeLockForm = ({
         {ethBalance && Number(ethBalance.value) === 0 && (
           <Alert variant="destructive" className="py-2">
             <AlertDescription className="text-xs">
-              You need ETH for transaction fees
+              You need bnb for transaction fees
             </AlertDescription>
           </Alert>
         )}
