@@ -467,7 +467,7 @@ const BridgeLockForm = ({
                 step="0.000000000000000001"
               />
               <Input
-                placeholder="Ethereum recipient (0x...)"
+                placeholder="BSC recipient (0x...)"
                 value={ethRecipient}
                 onChange={(e) => setEthRecipient(e.target.value)}
               />
