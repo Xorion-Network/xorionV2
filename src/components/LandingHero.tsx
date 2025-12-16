@@ -39,6 +39,12 @@ const LandingHero = ({ navigate }) => {
           Explore
         </button>
       </div>
+      <button
+  className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-8 py-4 rounded-full font-semibold shadow hover:opacity-90 transition-all flex items-center justify-center"
+  onClick={() => window.location.href = '/pvtsale.html'}
+>
+  Private Sale
+</button>
       <div className="flex flex-wrap justify-center gap-3 mt-12 max-w-3xl mx-auto">
         {[
           "Real-time Transaction Tracking",
