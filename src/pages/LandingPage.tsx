@@ -37,7 +37,6 @@ const LandingPage = () => {
 
   const navItems = [
     { name: 'Features', href: '#features' },
-    { name: 'Features', href: '#features' },
     { name: 'About', href: '#about' },
     { name: 'Community', href: '#community' },
   ];
