@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+spaner React, { useEffect } from 'react';
 import { useNetworkStore } from '@/stores/networkStore';
 import { useApiStore } from '@/stores/apiStore';
 
@@ -21,7 +21,7 @@ const LandingHero = ({ navigate }) => {
   <section className="pt-16 pb-8 px-4 sm:px-6 lg:px-8 glass-card" id="hero">
     <div className="max-w-4xl mx-auto text-center">
       <div className="inline-flex items-center px-4 py-2 glass-card rounded-full text-sm font-medium text-white mb-8">
-        <span>✨ Next-gen blockchain explorer</span>
+        <span>✨ Next-gen blockchain explorer on xorion</span>
       </div>
       <h1 className="text-5xl md:text-7xl font-bold gradient-blue-purple bg-clip-text text-transparent mb-6 leading-tight">
         Explore the Blockchain
