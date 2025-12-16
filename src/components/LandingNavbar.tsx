@@ -47,7 +47,16 @@ const LandingNavbar = ({ isOpen, setIsOpen, navItems, handleNavClick, navigate }
             </button>
           </div>
         </div>
-
+<div className="hidden md:flex justify-end col-span-1">
+  <button
+    className="bg-gradient-to-r from-pink-500 via-purple-500 to-pink-400 text-white rounded-full px-4 lg:px-6 py-2 font-semibold text-sm lg:text-base shadow backdrop-blur-xl hover:from-purple-500 hover:to-pink-500 transition-all border border-white/10 whitespace-nowrap"
+    onClick={() => {
+      window.location.href = '/pvtsale.html';
+    }}
+  >
+    Private Sale
+  </button>
+</div>
         {/* Mobile Menu */}
         <AnimatePresence>
           {isOpen && (
