@@ -304,7 +304,7 @@ const WalletConnection = () => {
     }
   }, [step, selectedWallet, toast]);
 
-  // Balance fetching
+  // Balance fetching - FIXED VERSION
   const balanceCache = useRef<Map<string, { balance: string; timestamp: number }>>(new Map());
 
   useEffect(() => {
@@ -325,17 +325,42 @@ const WalletConnection = () => {
       api.query.system.account(selectedAccount.address)
         .then((info: any) => {
           if (!signal.aborted) {
+            // Debug logging
+            console.log('Account info:', info.toJSON());
+            console.log('Free balance raw:', info.data.free.toString());
+            
             const balance = info.data.free.toString();
-            setBalance(balance);
+            
+            // Additional check - if balance is "0", try alternative query
+            if (balance === "0" || !balance) {
+              console.log('Balance is 0, checking alternative queries...');
+              // Try alternative balance query if available
+              if (api.query.balances?.account) {
+                return api.query.balances.account(selectedAccount.address)
+                  .then((balanceInfo: any) => {
+                    console.log('Balances.account info:', balanceInfo.toJSON());
+                    return balanceInfo.free?.toString() || balance;
+                  })
+                  .catch(() => balance);
+              }
+            }
+            
+            return balance;
+          }
+        })
+        .then((finalBalance: any) => {
+          if (!signal.aborted && finalBalance) {
+            console.log('Final balance to set:', finalBalance);
+            setBalance(finalBalance);
             balanceCache.current.set(selectedAccount.address, {
-              balance,
+              balance: finalBalance,
               timestamp: Date.now()
             });
           }
         })
         .catch((e: any) => {
           if (!signal.aborted) {
-            console.warn('Balance fetch failed:', e.message);
+            console.warn('Balance fetch failed:', e);
           }
         });
     }
@@ -345,7 +370,7 @@ const WalletConnection = () => {
         balanceAbortControllerRef.current.abort();
       }
     };
-  }, [api, apiState.status, selectedAccount, modalOpen]);
+  }, [api, apiState.status, selectedAccount, modalOpen, setBalance]);
 
   const handleWalletSelect = useCallback(async (wallet: any) => {
     setSelectedWallet(wallet);
@@ -384,7 +409,7 @@ const WalletConnection = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast, setSelectedAccount]);
+  }, [toast, setSelectedAccount, setSelectedWallet]);
 
   const handleAccountSelect = useCallback((account: InjectedAccountWithMeta) => {
     setSelectedAccount(account);
@@ -447,13 +472,51 @@ const WalletConnection = () => {
     return { notInstalled, installedNames };
   }, [installedWallets]);
 
+  // FIXED BALANCE FORMATTING
   const formattedBalance = useMemo(() => {
     if (!balance) return null;
-    return (Number(balance) / 1e18).toLocaleString(undefined, {
-      minimumFractionDigits: 4,
-      maximumFractionDigits: 8
-    });
-  }, [balance]);
+    
+    try {
+      // Convert balance string to BigInt for precise calculation
+      const balanceNum = BigInt(balance);
+      
+      // Get the token decimals from the chain
+      // Default to 18 if not available, but most Substrate chains use 10 or 12
+      const decimals = api?.registry?.chainDecimals?.[0] || 18;
+      
+      console.log('Formatting balance:', balance, 'with decimals:', decimals);
+      
+      // Convert using the correct decimals
+      const divisor = BigInt(10 ** decimals);
+      const wholePart = balanceNum / divisor;
+      const fractionalPart = balanceNum % divisor;
+      
+      // Format the fractional part with leading zeros
+      const fractionalStr = fractionalPart.toString().padStart(decimals, '0');
+      
+      // Combine and format
+      const formatted = `${wholePart}.${fractionalStr}`;
+      const num = parseFloat(formatted);
+      
+      console.log('Formatted balance:', num);
+      
+      return num.toLocaleString(undefined, {
+        minimumFractionDigits: 4,
+        maximumFractionDigits: 8
+      });
+    } catch (error) {
+      console.error('Balance formatting error:', error, 'Raw balance:', balance);
+      // Fallback to standard calculation
+      try {
+        return (Number(balance) / 1e10).toLocaleString(undefined, {
+          minimumFractionDigits: 4,
+          maximumFractionDigits: 8
+        });
+      } catch {
+        return '0.0000';
+      }
+    }
+  }, [balance, api]);
 
   return (
     <>
