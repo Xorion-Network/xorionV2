@@ -75,7 +75,7 @@
     "react-hook-form": "^7.53.0",
     "react-icons": "^5.5.0",
     "react-resizable-panels": "^2.1.3",
-    "react-router-dom": "^6.26.2",
+    "react-router-dom": "^6.30.3",
     "recharts": "^2.12.7",
     "snarkjs": "^0.7.5",
     "sonner": "^1.5.0",
